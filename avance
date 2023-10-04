@@ -1,0 +1,216 @@
+#include <SFML/Graphics.hpp>
+#include <SFML/System.hpp>
+#include <SFML/Window.hpp>
+
+class Puntuaciones {
+private:
+    int PuntuacionJugador1;
+    int PuntuacionJugador2;
+
+public:
+    Puntuaciones() : PuntuacionJugador1(0), PuntuacionJugador2(0) {}
+
+    void IncrementarPuntuacionJugador1() {
+        PuntuacionJugador1++;
+    }
+
+    void IncrementarPuntuacionJugador2() {
+        PuntuacionJugador2++;
+    }
+
+    int ObtenerPuntuacionJugador1() const {
+        return PuntuacionJugador1;
+    }
+
+    int ObtenerPuntuacionJugador2() const {
+        return PuntuacionJugador2;
+    }
+};
+
+class Paleta {
+private:
+    sf::RectangleShape forma; // Forma de la paleta
+    sf::Vector2f tamaño; // Tamaño de la paleta
+    float velocidad; // Velocidad de la paleta
+    sf::Vector2f posicion; // Posición de la paleta
+
+public:
+    Paleta(const sf::Vector2f& tamañoInicial, const sf::Vector2f& posicionInicial, float velocidadInicial)
+        : tamaño(tamañoInicial), posicion(posicionInicial), velocidad(velocidadInicial) {
+        // Configuración de la forma de la paleta
+        forma.setSize(tamaño);
+        forma.setFillColor(sf::Color::White);
+        forma.setPosition(posicion);
+    }
+
+    void MoverPaleta(bool arriba) {
+        // Mover la paleta en función de su velocidad
+        if (arriba) {
+            posicion.y -= velocidad;
+        } else {
+            posicion.y += velocidad;
+        }
+        forma.setPosition(posicion);
+    }
+
+    bool VerificarColisionBola(const sf::CircleShape& bola) {
+        // Verificar colisión entre la paleta y la bola
+        if (forma.getGlobalBounds().intersects(bola.getGlobalBounds())) {
+            return true; // Colisión detectada
+        }
+        return false; // No hubo colisión con la paleta
+    }
+
+    void Dibujar(sf::RenderWindow& ventana) {
+        // Dibujar la paleta en la ventana
+        ventana.draw(forma);
+    }
+};
+
+class Bola {
+private:
+    sf::CircleShape forma; // Forma de la pelota
+    sf::Vector2f velocidad; // Velocidad de la pelota
+    float radio; // Radio de la pelota
+    sf::Vector2f posicion; // Posición de la pelota
+
+public:
+    Bola(float radioInicial, const sf::Vector2f& posicionInicial, const sf::Vector2f& velocidadInicial)
+        : radio(radioInicial), posicion(posicionInicial), velocidad(velocidadInicial) {
+        // Configuración de la forma de la pelota
+        forma.setRadius(radio);
+        forma.setFillColor(sf::Color::Red);
+        forma.setPosition(posicion);
+    }
+
+    void MoverBola() {
+        // Mover la pelota en función de su velocidad
+        posicion += velocidad;
+        forma.setPosition(posicion);
+    }
+
+    void VerificarPuntuacion(Puntuaciones& puntuaciones, float anchoPantalla) {
+        if (posicion.x < 0) {
+            // Punto para el Jugador 2
+            puntuaciones.IncrementarPuntuacionJugador2();
+            ReiniciarPosicion(anchoPantalla);
+        } else if (posicion.x > anchoPantalla) {
+            // Punto para el Jugador 1
+            puntuaciones.IncrementarPuntuacionJugador1();
+            ReiniciarPosicion(anchoPantalla);
+        }
+    }
+
+    void ReiniciarPosicion(float anchoPantalla) {
+        // Restablecer la posición de la pelota al centro
+        posicion = sf::Vector2f(anchoPantalla / 2, 300.0f); // Ajusta la posición inicial según el tamaño de la ventana
+        forma.setPosition(posicion);
+    }
+
+    void RebotarEnParedes(float anchoPantalla, float altoPantalla) {
+        if (posicion.x - radio < 0 || posicion.x + radio > anchoPantalla) {
+            velocidad.x *= -1; // Rebote en las paredes horizontales
+        }
+        if (posicion.y - radio < 0 || posicion.y + radio > altoPantalla) {
+            velocidad.y *= -1; // Rebote en las paredes verticales
+        }
+    }
+
+    void RebotarEnPaletas(Paleta& paletaJugador1, Paleta& paletaJugador2) {
+        if (forma.getGlobalBounds().intersects(paletaJugador1.forma.getGlobalBounds()) ||
+            forma.getGlobalBounds().intersects(paletaJugador2.forma.getGlobalBounds())) {
+            // La pelota ha colisionado con una paleta
+            velocidad.x *= -1; // Invertir la dirección horizontal
+        }
+    }
+
+    void Dibujar(sf::RenderWindow& ventana) {
+        // Dibujar la pelota en la ventana
+        ventana.draw(forma);
+    }
+};
+
+class Juego {
+private:
+    sf::RenderWindow& ventana; // Referencia a la ventana principal del juego
+    Paleta paletaJugador1;
+    Paleta paletaJugador2;
+    Bola pelota;
+    Puntuaciones puntuaciones;
+
+public:
+    Juego(sf::RenderWindow& ventana)
+        : ventana(ventana), paletaJugador1(sf::Vector2f(20, 100), sf::Vector2f(30, 250), 5.0f),
+          paletaJugador2(sf::Vector2f(20, 100), sf::Vector2f(750, 250), 5.0f),
+          pelota(10.0f, sf::Vector2f(400.0f, 300.0f), sf::Vector2f(5.0f, 5.0f)), puntuaciones() {}
+
+    void Actualizar() {
+        // Lógica de actualización del juego
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
+            paletaJugador1.MoverPaleta(true);
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
+            paletaJugador1.MoverPaleta(false);
+        }
+
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
+            paletaJugador2.MoverPaleta(true);
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
+            paletaJugador2.MoverPaleta(false);
+        }
+
+        pelota.MoverBola();
+        pelota.VerificarPuntuacion(puntuaciones, ventana.getSize().x); // Verificar la puntuación y actualizarla
+        pelota.RebotarEnParedes(ventana.getSize().x, ventana.getSize().y); // Rebote en las paredes
+        pelota.RebotarEnPaletas(paletaJugador1, paletaJugador2);
+    }
+
+    void Dibujar() {
+        // Lógica de dibujo del juego
+        ventana.clear(sf::Color::Black);
+        paletaJugador1.Dibujar(ventana);
+        paletaJugador2.Dibujar(ventana);
+        pelota.Dibujar(ventana);
+
+        // Mostrar puntuación en la ventana
+        sf::Font fuente;
+        fuente.loadFromFile("arial.ttf"); // Ajusta la fuente según tu sistema
+        sf::Text textoPuntuacion;
+        textoPuntuacion.setFont(fuente);
+        textoPuntuacion.setCharacterSize(30);
+        textoPuntuacion.setFillColor(sf::Color::White);
+        textoPuntuacion.setPosition(350, 20); // Ajusta la posición
+        textoPuntuacion.setString("Jugador 1: " + std::to_string(puntuaciones.ObtenerPuntuacionJugador1()) +
+                                  "  Jugador 2: " + std::to_string(puntuaciones.ObtenerPuntuacionJugador2()));
+        ventana.draw(textoPuntuacion);
+
+        ventana.display();
+    }
+
+    bool EstaAbierto() const {
+        // Verificar si la ventana está abierta
+        return ventana.isOpen();
+    }
+};
+
+int main() {
+    sf::RenderWindow ventana(sf::VideoMode(800, 600), "Ping Pong");
+    ventana.setFramerateLimit(60); // Limitar la velocidad de fotogramas
+
+    Juego juego(ventana);
+
+    while (juego.EstaAbierto()) {
+        sf::Event evento;
+        while (ventana.pollEvent(evento)) {
+            if (evento.type == sf::Event::Closed) {
+                ventana.close();
+            }
+        }
+
+        juego.Actualizar();
+        juego.Dibujar();
+    }
+
+    return 0;
+} 
